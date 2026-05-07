@@ -103,6 +103,7 @@ async function create(flags) {
     domainId: flags.domain || undefined,
     permission: flags.permission ? Number(flags.permission) : undefined,
     parentId: flags.parent || undefined,
+    contentFormat: 'markdown'
   });
 }
 
@@ -122,6 +123,7 @@ async function update(args, flags) {
   if (!body.content && !body.displayName && body.permission === undefined) {
     return { ok: false, error: "缺少更新内容（--content, --file, --title 至少一个）" };
   }
+  body.contentFormat = 'markdown'
   return api("PUT", `/documents/${encodeURIComponent(id)}`, body);
 }
 
