@@ -38,6 +38,16 @@ fi
 2. **mdocs 服务端在运行**：默认地址 `http://127.0.0.1:4000`，可通过 `MDOCS_SERVER` 覆盖。
 3. **Node.js 18+**：built-in `fetch`，零依赖。
 
+# Token 失效处理
+
+当调用 CLI 返回 `INVALID_TOKEN` 或 `MDOCS_TOKEN 未设置` 错误时：
+
+1. 先检查 `echo $MDOCS_TOKEN` 是否为空，如果为空则主动问用户要 token
+2. 如果 token 已设置但仍报 `INVALID_TOKEN`，说明 token 已过期或被吊销，主动告知用户需要去 mdocs 设置页重新创建 CLI Token
+3. 拿到新 token 后，让用户 `export MDOCS_TOKEN=xxx` 或直接在命令前内联
+
+**不要自行通过 API 注册访客拿 token**，token 需要用户在 mdocs 设置页手动创建。
+
 # 调用方式
 
 ```bash
@@ -45,6 +55,14 @@ node ~/.mdocs-cli/mdocs.mjs <command> [args]
 ```
 
 # 命令速查
+
+## 列出现有域
+
+```bash
+node ~/.mdocs-cli/mdocs.mjs domains
+```
+
+返回当前 token 有权限访问的所有域。用于确定创建文章时传给 `--domain` 的域 ID。
 
 ## 搜索文章
 
