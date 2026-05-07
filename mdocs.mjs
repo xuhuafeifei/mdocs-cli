@@ -11,6 +11,7 @@
  *   node mdocs.mjs create --name "笔记.md" --title "标题" --content "正文" [--domain <域ID>] [--parent <父目录ID>]
  *   node mdocs.mjs create --name "笔记.md" --title "标题" --file /tmp/content.md [--domain <域ID>] [--parent <父目录ID>]
  *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
+ *   node mdocs.mjs domains
  *   node mdocs.mjs mkdir --domain <id> --name "目录名"
  */
 
@@ -127,6 +128,11 @@ async function update(args, flags) {
   return api("PUT", `/documents/${encodeURIComponent(id)}`, body);
 }
 
+// ─── 命令：domains ─────────────────────────────────────────
+async function domains() {
+  return api("GET", "/domains");
+}
+
 // ─── 命令：mkdir ────────────────────────────────────────────
 async function mkdir(flags) {
   if (!flags.domain) return { ok: false, error: "缺少 --domain <域ID>" };
@@ -149,11 +155,12 @@ async function main() {
     case "get":    result = await get(args.slice(1)); break;
     case "create": result = await create(flags); break;
     case "update": result = await update(args.slice(1), flags); break;
+    case "domains": result = await domains(); break;
     case "mkdir":  result = await mkdir(flags); break;
     default:
       result = {
         ok: false,
-        error: `未知命令: ${cmd}\n支持: search, get, create, update, mkdir`,
+        error: `未知命令: ${cmd}\n支持: search, get, create, update, domains, mkdir`,
       };
   }
 
