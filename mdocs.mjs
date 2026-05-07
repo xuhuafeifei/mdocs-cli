@@ -2,14 +2,15 @@
 /**
  * mdocs — mdocs CLI client
  *
- * 4 个命令：search, get, create, mkdir
+ * 5 个命令：search, get, create, update, mkdir
  *
  * Usage:
  *   export MDOCS_TOKEN="xxx"
  *   node mdocs.mjs search --q "关键词" [--domain <id>] [--topn <n>]
  *   node mdocs.mjs get <document-id>
- *   node mdocs.mjs create --domain <id> --path "笔记/xxx.md" --title "标题" --content "正文"
- *   node mdocs.mjs create --domain <id> --path "笔记/xxx.md" --title "标题" --file /tmp/content.md
+ *   node mdocs.mjs create --name "笔记.md" --title "标题" --content "正文" [--domain <域ID>] [--parent <父目录ID>]
+ *   node mdocs.mjs create --name "笔记.md" --title "标题" --file /tmp/content.md [--domain <域ID>] [--parent <父目录ID>]
+ *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
  *   node mdocs.mjs mkdir --domain <id> --name "目录名"
  */
 
@@ -85,8 +86,8 @@ async function get(args) {
 
 // ─── 命令：create ───────────────────────────────────────────
 async function create(flags) {
-  if (!flags.domain) return { ok: false, error: "缺少 --domain <域ID>" };
-  if (!flags.path) return { ok: false, error: "缺少 --path <路径>" };
+  const fileName = flags.name || flags.path;
+  if (!fileName) return { ok: false, error: "缺少 --name <文件名>（如：笔记.md）" };
 
   let content = flags.content;
   if (flags.file) {
@@ -96,12 +97,32 @@ async function create(flags) {
   if (!content) return { ok: false, error: "缺少 --content <正文> 或 --file <路径>" };
 
   return api("POST", "/documents", {
-    relativePath: flags.path,
+    fileName,
     displayName: flags.title || undefined,
     content,
-    domainId: flags.domain,
+    domainId: flags.domain || undefined,
+    permission: flags.permission ? Number(flags.permission) : undefined,
     parentId: flags.parent || undefined,
   });
+}
+
+// ─── 命令：update ───────────────────────────────────────────
+async function update(args, flags) {
+  const id = args[0];
+  if (!id) return { ok: false, error: "缺少文档 ID" };
+
+  const body = {};
+  if (flags.content) body.content = flags.content;
+  if (flags.file) {
+    const fs = await import("node:fs");
+    body.content = fs.readFileSync(flags.file, "utf-8");
+  }
+  if (flags.title) body.displayName = flags.title;
+  if (flags.permission) body.permission = Number(flags.permission);
+  if (!body.content && !body.displayName && body.permission === undefined) {
+    return { ok: false, error: "缺少更新内容（--content, --file, --title 至少一个）" };
+  }
+  return api("PUT", `/documents/${encodeURIComponent(id)}`, body);
 }
 
 // ─── 命令：mkdir ────────────────────────────────────────────
@@ -125,11 +146,12 @@ async function main() {
     case "search": result = await search(flags); break;
     case "get":    result = await get(args.slice(1)); break;
     case "create": result = await create(flags); break;
+    case "update": result = await update(args.slice(1), flags); break;
     case "mkdir":  result = await mkdir(flags); break;
     default:
       result = {
         ok: false,
-        error: `未知命令: ${cmd}\n支持: search, get, create, mkdir`,
+        error: `未知命令: ${cmd}\n支持: search, get, create, update, mkdir`,
       };
   }
 
