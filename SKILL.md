@@ -122,6 +122,17 @@ node ~/.mdocs-cli/mdocs.mjs mkdir --domain <域ID> --name "目录名" [--parent 
 
 成功时 exit code 0，失败时 exit code 1。
 
+# URL 意图判断规则
+
+当用户给出 `http://localhost:5173/doc/<文档ID>` 链接时：
+
+1. **先 `get <文档ID>`**，查看该文档的 `relativePath`
+2. **判断标准**：
+   - 如果用户说"写入"/"修改"/"更新"这篇文章 → 用 `update`
+   - 如果用户说"创建"/"挂载"到这篇文章 → 用 `get` 查它的 `domainId`，然后找到它的父目录（通过 tree 接口），用父目录的 `documentId` 作为 `--parent` 调用 `create`
+   - 如果该文档的路径以 `___desc___.md` 结尾，说明它是一个目录的描述页，`create` 时 `--parent` 应传这个目录节点（而非文档本身）的 ID。目录节点 ID 可以通过 `curl /api/tree?domainId=xxx` 找到，通常与描述页文档 ID 不同
+3. **不确定时，先问用户意图**
+
 # 建议工作流
 
 1. 确保 `MDOCS_TOKEN` 已设置，mdocs 服务端在运行。
