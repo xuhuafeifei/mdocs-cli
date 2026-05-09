@@ -16,8 +16,11 @@ node mdocs.mjs search --q "关键词"
 # 3. 读取文章
 node mdocs.mjs get <文档ID>
 
-# 4. 创建文章（在参考文档的同级目录下创建）
+# 4. 创建文章
+#   方式 A：指定参考文档，创建在同级目录
 node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
+#   方式 B：不指定位置，默认写到私域根目录
+node mdocs.mjs create --name "笔记.md" --title "标题" --content "正文"
 
 # 5. 创建目录
 node mdocs.mjs mkdir --domain <域ID> --name "目录名"

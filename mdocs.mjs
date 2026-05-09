@@ -87,19 +87,25 @@ async function get(args) {
 
 // ─── 命令：create ───────────────────────────────────────────
 async function create(args, flags) {
+  let domainId, parentId;
+
   const referenceDocId = args[0];
-  if (!referenceDocId) {
-    return { ok: false, error: "缺少参考文档 ID（用法: create <文档ID> --name <文件名> ...）" };
+  if (referenceDocId) {
+    // 有参考文档：查询它，自动推断 domainId 和 parentId
+    const ref = await api("GET", `/documents/${encodeURIComponent(referenceDocId)}`);
+    if (!ref.ok) return ref;
+
+    const refDoc = ref.data;
+    domainId = refDoc.domainId;
+    // 如果参考文档是目录，新文档挂在这个目录下；否则挂在参考文档的同级目录
+    parentId = refDoc.fileType === 'dir' ? refDoc.documentId : (refDoc.parentId || undefined);
+  } else {
+    // 没有参考文档：默认写到当前用户的私域根目录
+    const me = await api("GET", "/visitors/me");
+    if (!me.ok) return me;
+    domainId = me.data.visitor.visitorId;
+    parentId = undefined;
   }
-
-  // 查询参考文档，获取 domainId 和 parentId
-  const ref = await api("GET", `/documents/${encodeURIComponent(referenceDocId)}`);
-  if (!ref.ok) return ref;
-
-  const refDoc = ref.data;
-  const domainId = refDoc.domainId;
-  // 如果参考文档是目录，新文档挂在这个目录下；否则挂在参考文档的同级目录
-  const parentId = refDoc.fileType === 'dir' ? refDoc.documentId : (refDoc.parentId || undefined);
 
   const fileName = flags.name || flags.path;
   if (!fileName) return { ok: false, error: "缺少 --name <文件名>（如：笔记.md）" };

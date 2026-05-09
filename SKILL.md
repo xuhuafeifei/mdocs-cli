@@ -83,11 +83,14 @@ node ~/.mdocs-cli/mdocs.mjs get <文档ID>
 ## 创建文章
 
 ```bash
+# 方式 A：指定参考文档，创建在同级目录
 node ~/.mdocs-cli/mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
-node ~/.mdocs-cli/mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --file /tmp/content.md
+
+# 方式 B：不指定位置，默认写到当前用户的私域根目录
+node ~/.mdocs-cli/mdocs.mjs create --name "笔记.md" --title "标题" --content "正文"
 ```
 
-- `<参考文档ID>`：必填。新文档将创建在该文档的**同级目录**下；如果参考文档本身是目录，则创建在该目录内部
+- `<参考文档ID>`：可选。指定后，新文档将创建在该文档的**同级目录**下；如果参考文档本身是目录，则创建在该目录内部。不指定时，默认写到当前用户的私域根目录
 - `--name`：文件名（必填），如 `笔记.md`
 - `--title`：展示标题（可选，默认用文件名）
 - `--content`：正文（与 `--file` 二选一）
@@ -126,12 +129,13 @@ node ~/.mdocs-cli/mdocs.mjs mkdir --domain <域ID> --name "目录名" [--parent 
 
 当用户给出 `http://localhost:5173/doc/<文档ID>` 链接时：
 
-1. **先 `get <文档ID>`**，查看该文档的 `relativePath` 和 `fileType`
-2. **判断标准**：
+1. **判断标准**：
    - 如果用户说"写入"/"修改"/"更新"这篇文章 → 用 `update <文档ID>`
    - 如果用户说"创建"/"新建"一篇文章 → 用 `create <文档ID>`（CLI 会自动将其挂载到该文档的同级目录；若该文档是目录，则挂载到目录内部）
-   - 如果用户说"在这个目录下创建"，但该文档不是目录 → 需要进一步确认：可以用 `get <文档ID>` 得到 `parentId`，然后 `create <parentId>`
-3. **不确定时，先问用户意图**
+2. **不确定时，先问用户意图**
+
+当用户只说"创建一篇文章"而没有给出任何文档链接时：
+- 直接用 `create --name "xxx.md" ...`，CLI 会自动将其写到当前用户的私域根目录
 
 # 建议工作流
 
