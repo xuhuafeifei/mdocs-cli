@@ -8,8 +8,8 @@
  *   export MDOCS_TOKEN="xxx"
  *   node mdocs.mjs search --q "关键词" [--domain <id>] [--topn <n>]
  *   node mdocs.mjs get <document-id>
- *   node mdocs.mjs create --name "笔记.md" --title "标题" --content "正文" [--domain <域ID>] [--parent <父目录ID>]
- *   node mdocs.mjs create --name "笔记.md" --title "标题" --file /tmp/content.md [--domain <域ID>] [--parent <父目录ID>]
+ *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
+ *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --file /tmp/content.md
  *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
  *   node mdocs.mjs domains
  *   node mdocs.mjs mkdir --domain <id> --name "目录名"
@@ -86,7 +86,21 @@ async function get(args) {
 }
 
 // ─── 命令：create ───────────────────────────────────────────
-async function create(flags) {
+async function create(args, flags) {
+  const referenceDocId = args[0];
+  if (!referenceDocId) {
+    return { ok: false, error: "缺少参考文档 ID（用法: create <文档ID> --name <文件名> ...）" };
+  }
+
+  // 查询参考文档，获取 domainId 和 parentId
+  const ref = await api("GET", `/documents/${encodeURIComponent(referenceDocId)}`);
+  if (!ref.ok) return ref;
+
+  const refDoc = ref.data;
+  const domainId = refDoc.domainId;
+  // 如果参考文档是目录，新文档挂在这个目录下；否则挂在参考文档的同级目录
+  const parentId = refDoc.fileType === 'dir' ? refDoc.documentId : (refDoc.parentId || undefined);
+
   const fileName = flags.name || flags.path;
   if (!fileName) return { ok: false, error: "缺少 --name <文件名>（如：笔记.md）" };
 
@@ -101,9 +115,9 @@ async function create(flags) {
     fileName,
     displayName: flags.title || undefined,
     content,
-    domainId: flags.domain || undefined,
+    domainId,
     permission: flags.permission ? Number(flags.permission) : undefined,
-    parentId: flags.parent || undefined,
+    parentId,
     contentFormat: 'markdown'
   });
 }
@@ -153,7 +167,7 @@ async function main() {
   switch (cmd) {
     case "search": result = await search(flags); break;
     case "get":    result = await get(args.slice(1)); break;
-    case "create": result = await create(flags); break;
+    case "create": result = await create(args.slice(1), flags); break;
     case "update": result = await update(args.slice(1), flags); break;
     case "domains": result = await domains(); break;
     case "mkdir":  result = await mkdir(flags); break;

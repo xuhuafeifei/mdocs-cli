@@ -83,16 +83,16 @@ node ~/.mdocs-cli/mdocs.mjs get <文档ID>
 ## 创建文章
 
 ```bash
-node ~/.mdocs-cli/mdocs.mjs create --name "笔记.md" --title "标题" --content "正文" [--domain <域ID>] [--parent <父目录ID>]
-node ~/.mdocs-cli/mdocs.mjs create --name "笔记.md" --title "标题" --file /tmp/content.md [--domain <域ID>] [--parent <父目录ID>]
+node ~/.mdocs-cli/mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
+node ~/.mdocs-cli/mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --file /tmp/content.md
 ```
 
-- `--name`：文件名（必填），如 `笔记.md`。路径由后端根据 `--parent` 自动计算
-- `--domain`：域 ID（可选，不传时使用当前访客的个人域）
+- `<参考文档ID>`：必填。新文档将创建在该文档的**同级目录**下；如果参考文档本身是目录，则创建在该目录内部
+- `--name`：文件名（必填），如 `笔记.md`
 - `--title`：展示标题（可选，默认用文件名）
 - `--content`：正文（与 `--file` 二选一）
 - `--file`：从文件读正文
-- `--parent`：父目录 ID（可选，不传则放在域顶层）
+- `--permission`：权限档位（可选）
 
 ## 更新文章
 
@@ -126,11 +126,11 @@ node ~/.mdocs-cli/mdocs.mjs mkdir --domain <域ID> --name "目录名" [--parent 
 
 当用户给出 `http://localhost:5173/doc/<文档ID>` 链接时：
 
-1. **先 `get <文档ID>`**，查看该文档的 `relativePath`
+1. **先 `get <文档ID>`**，查看该文档的 `relativePath` 和 `fileType`
 2. **判断标准**：
-   - 如果用户说"写入"/"修改"/"更新"这篇文章 → 用 `update`
-   - 如果用户说"创建"/"挂载"到这篇文章 → 用 `get` 查它的 `domainId`，然后找到它的父目录（通过 tree 接口），用父目录的 `documentId` 作为 `--parent` 调用 `create`
-   - 如果该文档的路径以 `___desc___.md` 结尾，说明它是一个目录的描述页，`create` 时 `--parent` 应传这个目录节点（而非文档本身）的 ID。目录节点 ID 可以通过 `curl /api/tree?domainId=xxx` 找到，通常与描述页文档 ID 不同
+   - 如果用户说"写入"/"修改"/"更新"这篇文章 → 用 `update <文档ID>`
+   - 如果用户说"创建"/"新建"一篇文章 → 用 `create <文档ID>`（CLI 会自动将其挂载到该文档的同级目录；若该文档是目录，则挂载到目录内部）
+   - 如果用户说"在这个目录下创建"，但该文档不是目录 → 需要进一步确认：可以用 `get <文档ID>` 得到 `parentId`，然后 `create <parentId>`
 3. **不确定时，先问用户意图**
 
 # 建议工作流
