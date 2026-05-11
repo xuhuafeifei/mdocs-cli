@@ -10,6 +10,7 @@
  *   node mdocs.mjs get <document-id>
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --file /tmp/content.md
+ *   node mdocs.mjs create --domain <域ID> --parent <目录ID> --name "笔记.md" --title "标题" --file /tmp/content.md
  *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
  *   node mdocs.mjs domains
  *   node mdocs.mjs mkdir --domain <id> --name "目录名"
@@ -89,22 +90,28 @@ async function get(args) {
 async function create(args, flags) {
   let domainId, parentId;
 
-  const referenceDocId = args[0];
-  if (referenceDocId) {
-    // 有参考文档：查询它，自动推断 domainId 和 parentId
-    const ref = await api("GET", `/documents/${encodeURIComponent(referenceDocId)}`);
-    if (!ref.ok) return ref;
-
-    const refDoc = ref.data;
-    domainId = refDoc.domainId;
-    // 如果参考文档是目录，新文档挂在这个目录下；否则挂在参考文档的同级目录
-    parentId = refDoc.fileType === 'dir' ? refDoc.documentId : (refDoc.parentId || undefined);
+  // 优先使用命令行指定的 --domain 和 --parent
+  if (flags.domain) {
+    domainId = flags.domain;
+    parentId = flags.parent || undefined;
   } else {
-    // 没有参考文档：默认写到当前用户的私域根目录
-    const me = await api("GET", "/visitors/me");
-    if (!me.ok) return me;
-    domainId = me.data.visitor.visitorId;
-    parentId = undefined;
+    const referenceDocId = args[0];
+    if (referenceDocId) {
+      // 有参考文档：查询它，自动推断 domainId 和 parentId
+      const ref = await api("GET", `/documents/${encodeURIComponent(referenceDocId)}`);
+      if (!ref.ok) return ref;
+
+      const refDoc = ref.data;
+      domainId = refDoc.domainId;
+      // 如果参考文档是目录，新文档挂在这个目录下；否则挂在参考文档的同级目录
+      parentId = refDoc.fileType === 'dir' ? refDoc.documentId : (refDoc.parentId || undefined);
+    } else {
+      // 没有参考文档：默认写到当前用户的私域根目录
+      const me = await api("GET", "/visitors/me");
+      if (!me.ok) return me;
+      domainId = me.data.visitor.visitorId;
+      parentId = undefined;
+    }
   }
 
   const fileName = flags.name || flags.path;
