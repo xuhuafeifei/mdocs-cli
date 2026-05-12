@@ -2,7 +2,7 @@
 /**
  * mdocs — mdocs CLI client
  *
- * 5 个命令：search, get, create, update, mkdir
+ * 7 个命令：search, get, create, update, list, domains, mkdir, ls
  *
  * Usage:
  *   export MDOCS_TOKEN="xxx"
@@ -12,8 +12,11 @@
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --file /tmp/content.md
  *   node mdocs.mjs create --domain <域ID> --parent <目录ID> --name "笔记.md" --title "标题" --file /tmp/content.md
  *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
+ *   node mdocs.mjs list [--domain <id>] [--domainName <name>]
  *   node mdocs.mjs domains
  *   node mdocs.mjs mkdir --domain <id> --name "目录名"
+ *   node mdocs.mjs ls <documentId>
+ *   node mdocs.mjs ls "文件名关键词" --domain <域ID>
  */
 
 const TOKEN = process.env.MDOCS_TOKEN;
@@ -160,6 +163,15 @@ async function domains() {
   return api("GET", "/domains");
 }
 
+// ─── 命令：list ─────────────────────────────────────────────
+async function list(flags) {
+  const params = new URLSearchParams();
+  if (flags.domain) params.set("domainId", flags.domain);
+  if (flags.domainName) params.set("domainName", flags.domainName);
+  const qs = params.toString();
+  return api("GET", `/documents${qs ? "?" + qs : ""}`);
+}
+
 // ─── 命令：mkdir ────────────────────────────────────────────
 async function mkdir(flags) {
   if (!flags.domain) return { ok: false, error: "缺少 --domain <域ID>" };
@@ -169,6 +181,55 @@ async function mkdir(flags) {
     domainId: flags.domain,
     parentId: flags.parent || undefined,
   });
+}
+
+// ─── 命令：ls ───────────────────────────────────────────────
+async function ls(args, flags) {
+  const target = args[0];
+  if (!target) return { ok: false, error: "缺少参数：<documentId> 或 <文件名关键词>" };
+
+  let doc;
+
+  // 方式1：按文件名搜索（需要指定域）
+  if (flags.domain || flags.domainName) {
+    // 先列出域下所有文档，按 display_name 匹配
+    const params = new URLSearchParams();
+    if (flags.domain) params.set("domainId", flags.domain);
+    if (flags.domainName) params.set("domainName", flags.domainName);
+    const qs = params.toString();
+
+    const listResult = await api("GET", `/documents${qs ? "?" + qs : ""}`);
+    if (!listResult.ok) return listResult;
+
+    // 匹配 display_name 或 relative_path
+    const matched = listResult.data.find(d =>
+      d.displayName?.includes(target) || d.relativePath?.includes(target)
+    );
+    if (!matched) {
+      return { ok: false, error: `在指定域中未找到匹配 "${target}" 的文档` };
+    }
+    doc = matched;
+  } else {
+    // 方式2：直接按 documentId 查询
+    const getResult = await api("GET", `/documents/${encodeURIComponent(target)}`);
+    if (!getResult.ok) return getResult;
+    doc = getResult.data;
+  }
+
+  // 确定要查询的目录ID
+  let folderId;
+  if (doc.fileType === 'dir') {
+    // 是目录，直接查它的子节点
+    folderId = doc.documentId;
+  } else {
+    // 是普通文章，查它的父目录
+    folderId = doc.parentId;
+    if (!folderId) {
+      return { ok: false, error: "该文档在根目录下，没有父目录" };
+    }
+  }
+
+  return api("GET", `/documents/folder/${encodeURIComponent(folderId)}/children`);
 }
 
 // ─── 入口 ───────────────────────────────────────────────────
@@ -182,12 +243,14 @@ async function main() {
     case "get":    result = await get(args.slice(1)); break;
     case "create": result = await create(args.slice(1), flags); break;
     case "update": result = await update(args.slice(1), flags); break;
+    case "list":   result = await list(flags); break;
     case "domains": result = await domains(); break;
     case "mkdir":  result = await mkdir(flags); break;
+    case "ls":     result = await ls(args.slice(1), flags); break;
     default:
       result = {
         ok: false,
-        error: `未知命令: ${cmd}\n支持: search, get, create, update, domains, mkdir`,
+        error: `未知命令: ${cmd}\n支持: search, get, create, update, list, domains, mkdir, ls`,
       };
   }
 

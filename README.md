@@ -16,13 +16,17 @@ node mdocs.mjs search --q "关键词"
 # 3. 读取文章
 node mdocs.mjs get <文档ID>
 
-# 4. 创建文章
+# 4. 列出某域下所有文档
+node mdocs.mjs list --domain <域ID>
+node mdocs.mjs list --domainName <域名>
+
+# 5. 创建文章
 #   方式 A：指定参考文档，创建在同级目录
 node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
 #   方式 B：不指定位置，默认写到私域根目录
 node mdocs.mjs create --name "笔记.md" --title "标题" --content "正文"
 
-# 5. 创建目录
+# 6. 创建目录
 node mdocs.mjs mkdir --domain <域ID> --name "目录名"
 ```
 
@@ -39,6 +43,7 @@ node mdocs.mjs mkdir --domain <域ID> --name "目录名"
 |------|------|----------|
 | `search` | 全文检索 | `POST /api/documents/search` |
 | `get` | 读取文档内容 | `GET /api/documents/:id` |
+| `list` | 列出某域下所有文档 | `GET /api/documents?domainId=xxx&domainName=xxx` |
 | `create` | 创建文档 | `POST /api/documents` |
 | `mkdir` | 创建目录 | `POST /api/folders` |
 
