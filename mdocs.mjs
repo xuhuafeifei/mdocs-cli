@@ -7,7 +7,7 @@
  * Usage:
  *   export MDOCS_TOKEN="xxx"
  *   node mdocs.mjs search --q "关键词" [--domain <id>] [--topn <n>]
- *   node mdocs.mjs get <document-id>
+ *   node mdocs.mjs get <document-id> [--json]  # 默认返回纯文本，--json 返回 Lexical JSON
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --file /tmp/content.md
  *   node mdocs.mjs create --domain <域ID> --parent <目录ID> --name "笔记.md" --title "标题" --file /tmp/content.md
@@ -86,7 +86,8 @@ async function search(flags) {
 async function get(args) {
   const id = args[0];
   if (!id) return { ok: false, error: "缺少文档 ID" };
-  return api("GET", `/documents/${encodeURIComponent(id)}`);
+  // CLI 默认返回纯文本，方便 AI 阅读
+  return api("GET", `/documents/${encodeURIComponent(id)}?format=text`);
 }
 
 // ─── 命令：create ───────────────────────────────────────────
