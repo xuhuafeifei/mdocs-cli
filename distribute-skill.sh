@@ -6,11 +6,13 @@
 #   ./distribute-skill.sh                    # 分发到所有已知 agent 目录
 #   ./distribute-skill.sh deepseek           # 只分发到 deepseek
 #   ./distribute-skill.sh claude             # 只分发到 claude
+#   ./distribute-skill.sh cursor             # 只分发到 cursor
 #   ./distribute-skill.sh deepseek claude    # 分发到指定多个
 #
 # 目标:
 #   deepseek → ~/.deepseek/skills/mdoc-cli/SKILL.md
 #   claude   → ~/.claude/skills/mdoc-cli/SKILL.md
+#   cursor   → ~/.cursor/skills/mdoc-cli/SKILL.md
 
 set -euo pipefail
 
@@ -25,10 +27,11 @@ fi
 # ── 目标映射 ────────────────────────────────────────────────
 target_deepseek="${HOME}/.deepseek/skills/mdoc-cli"
 target_claude="${HOME}/.claude/skills/mdoc-cli"
+target_cursor="${HOME}/.cursor/skills/mdoc-cli"
 
 # ── 解析要分发的目标 ────────────────────────────────────────
 if [[ $# -eq 0 ]]; then
-  set -- deepseek claude
+  set -- deepseek claude cursor
 fi
 
 # ── 分发 ─────────────────────────────────────────────────────
@@ -38,6 +41,7 @@ for name; do
   case "${name}" in
     deepseek) dest="${target_deepseek}" ;;
     claude)   dest="${target_claude}" ;;
+    cursor)   dest="${target_cursor}" ;;
     *) echo "  [SKIP] 未知目标: ${name}"; continue ;;
   esac
 
