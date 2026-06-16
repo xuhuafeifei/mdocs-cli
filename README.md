@@ -30,12 +30,22 @@ node mdocs.mjs create --name "笔记.md" --title "标题" --content "正文"
 node mdocs.mjs mkdir --domain <域ID> --name "目录名"
 ```
 
-## 环境变量
+## 环境变量与全局参数
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `MDOCS_TOKEN` | — | **必填**。CLI Token，在 mdocs 设置页创建 |
-| `MDOCS_SERVER` | `http://127.0.0.1:4000` | mdocs 服务端地址 |
+| 来源 | Token | 服务端 |
+|------|-------|--------|
+| **入参（优先）** | `--token <token>` **必填其一** | `--ip <host[:port]\|url>` 可选 |
+| **环境变量** | `MDOCS_TOKEN` | `MDOCS_SERVER` |
+| **默认** | — | `http://127.0.0.1:4000` |
+
+`--ip` 示例：`101.132.222.88:4000`、`http://101.132.222.88:4000`；仅 host 时默认端口 `4000`。
+
+全局选项可放在命令前或后，例如：
+
+```bash
+node mdocs.mjs --token xxx --ip 101.132.222.88:4000 domains
+node mdocs.mjs domains --token xxx --ip 101.132.222.88:4000
+```
 
 ## 命令
 

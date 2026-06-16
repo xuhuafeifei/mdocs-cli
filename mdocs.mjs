@@ -2,27 +2,126 @@
 /**
  * mdocs — mdocs CLI client
  *
- * 7 个命令：search, get, create, update, list, domains, mkdir, ls
+ * Global options (any position, override env):
+ *   --token <token>   CLI Token（必填：入参或 MDOCS_TOKEN）
+ *   --ip <host[:port]|url>   服务端地址（可选：入参 > MDOCS_SERVER > 本机 4000）
+ *
+ * Commands: search, get, create, update, list, domains, mkdir, ls
  *
  * Usage:
- *   export MDOCS_TOKEN="xxx"
+ *   node mdocs.mjs --token xxx --ip 101.132.222.88:4000 domains
  *   node mdocs.mjs search --q "关键词" [--domain <id>] [--topn <n>]
- *   node mdocs.mjs get <document-id> [--json]  # 默认返回纯文本，--json 返回 Lexical JSON
+ *   node mdocs.mjs get <document-id>
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
- *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --file /tmp/content.md
- *   node mdocs.mjs create --domain <域ID> --parent <目录ID> --name "笔记.md" --title "标题" --file /tmp/content.md
+ *   node mdocs.mjs create --domain <域ID> --parent <目录ID> --name "笔记.md" --file /tmp/content.md
  *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
  *   node mdocs.mjs list [--domain <id>] [--domainName <name>]
- *   node mdocs.mjs domains
  *   node mdocs.mjs mkdir --domain <id> --name "目录名"
  *   node mdocs.mjs ls <documentId>
  *   node mdocs.mjs ls "文件名关键词" --domain <域ID>
  */
 
-const TOKEN = process.env.MDOCS_TOKEN;
-const SERVER = (process.env.MDOCS_SERVER || "http://127.0.0.1:4000").replace(/\/+$/, "");
+const DEFAULT_SERVER = "http://127.0.0.1:4000";
 
-// ─── 简易参数解析 ───────────────────────────────────────────
+// ─── 运行时配置（全局 --token / --ip + 环境变量）────────────────
+function normalizeServer(value) {
+  const raw = String(value).trim().replace(/\/+$/, "");
+  if (!raw) return DEFAULT_SERVER;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.includes(":")) return `http://${raw}`;
+  return `http://${raw}:4000`;
+}
+
+/** 从 argv 剥离全局选项，返回剩余命令参数。 */
+function stripGlobalOptions(argv) {
+  const rest = [];
+  const globalFlags = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--token") {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith("--")) {
+        return { error: "缺少 --token 的值" };
+      }
+      globalFlags.token = v;
+      continue;
+    }
+    if (a === "--ip") {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith("--")) {
+        return { error: "缺少 --ip 的值" };
+      }
+      globalFlags.ip = v;
+      continue;
+    }
+    rest.push(a);
+  }
+  return { argv: rest, globalFlags };
+}
+
+/** 优先级：入参 > 环境变量 > 默认（ip 可缺省，token 不可）。 */
+function resolveRuntimeConfig(globalFlags) {
+  const token = globalFlags.token || process.env.MDOCS_TOKEN || "";
+  const server = globalFlags.ip
+    ? normalizeServer(globalFlags.ip)
+    : process.env.MDOCS_SERVER
+      ? normalizeServer(process.env.MDOCS_SERVER)
+      : DEFAULT_SERVER;
+  return { token, server };
+}
+
+function missingTokenError() {
+  return {
+    ok: false,
+    error:
+      "缺少 CLI Token：请使用 --token <token> 或设置环境变量 MDOCS_TOKEN（在 mdocs 设置页创建）",
+  };
+}
+
+/** 工厂：绑定 token / server，生成命令共用的 api 函数。 */
+function createApiClient(config) {
+  return async function api(method, path, body) {
+    const url = `${config.server}/api${path}`;
+    const opts = {
+      method,
+      headers: { "x-cli-token": config.token },
+    };
+    if (body !== undefined) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    try {
+      const res = await fetch(url, opts);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const err = json?.error;
+        return { ok: false, error: err ? `[${err.code}] ${err.message}` : `HTTP ${res.status}` };
+      }
+      return { ok: true, data: json?.data };
+    } catch (e) {
+      return { ok: false, error: `请求失败: ${e.message}` };
+    }
+  };
+}
+
+/**
+ * AOP 包装：解析配置 → 校验 token → 注入 api → 执行命令。
+ * 所有命令经此入口，避免在各命令里重复读环境变量。
+ */
+async function withMdocsClient(argv, runner) {
+  const stripped = stripGlobalOptions(argv);
+  if (stripped.error) {
+    return { ok: false, error: stripped.error };
+  }
+  const config = resolveRuntimeConfig(stripped.globalFlags);
+  if (!config.token) {
+    return missingTokenError();
+  }
+  const api = createApiClient(config);
+  return runner({ api, argv: stripped.argv, config });
+}
+
+// ─── 简易参数解析（子命令 flags）──────────────────────────────
 function parseArgs(argv) {
   const args = [];
   const flags = {};
@@ -44,35 +143,8 @@ function parseArgs(argv) {
   return { args, flags };
 }
 
-// ─── HTTP 请求 ──────────────────────────────────────────────
-async function api(method, path, body) {
-  if (!TOKEN) {
-    return { ok: false, error: "MDOCS_TOKEN 未设置，请先 export MDOCS_TOKEN=xxx" };
-  }
-  const url = `${SERVER}/api${path}`;
-  const opts = {
-    method,
-    headers: { "x-cli-token": TOKEN },
-  };
-  if (body !== undefined) {
-    opts.headers["Content-Type"] = "application/json";
-    opts.body = JSON.stringify(body);
-  }
-  try {
-    const res = await fetch(url, opts);
-    const json = await res.json().catch(() => null);
-    if (!res.ok) {
-      const err = json?.error;
-      return { ok: false, error: err ? `[${err.code}] ${err.message}` : `HTTP ${res.status}` };
-    }
-    return { ok: true, data: json?.data };
-  } catch (e) {
-    return { ok: false, error: `请求失败: ${e.message}` };
-  }
-}
-
 // ─── 命令：search ───────────────────────────────────────────
-async function search(flags) {
+async function search(api, flags) {
   const q = flags.q || flags.query;
   if (!q) return { ok: false, error: "缺少 --q <关键词>" };
   return api("POST", "/documents/search", {
@@ -83,34 +155,29 @@ async function search(flags) {
 }
 
 // ─── 命令：get ──────────────────────────────────────────────
-async function get(args) {
+async function get(api, args) {
   const id = args[0];
   if (!id) return { ok: false, error: "缺少文档 ID" };
-  // CLI 默认返回纯文本，方便 AI 阅读
   return api("GET", `/documents/${encodeURIComponent(id)}?format=text`);
 }
 
 // ─── 命令：create ───────────────────────────────────────────
-async function create(args, flags) {
+async function create(api, args, flags) {
   let domainId, parentId;
 
-  // 优先使用命令行指定的 --domain 和 --parent
   if (flags.domain) {
     domainId = flags.domain;
     parentId = flags.parent || undefined;
   } else {
     const referenceDocId = args[0];
     if (referenceDocId) {
-      // 有参考文档：查询它，自动推断 domainId 和 parentId
       const ref = await api("GET", `/documents/${encodeURIComponent(referenceDocId)}`);
       if (!ref.ok) return ref;
 
       const refDoc = ref.data;
       domainId = refDoc.domainId;
-      // 如果参考文档是目录，新文档挂在这个目录下；否则挂在参考文档的同级目录
-      parentId = refDoc.fileType === 'dir' ? refDoc.documentId : (refDoc.parentId || undefined);
+      parentId = refDoc.fileType === "dir" ? refDoc.documentId : refDoc.parentId || undefined;
     } else {
-      // 没有参考文档：默认写到当前用户的私域根目录
       const me = await api("GET", "/visitors/me");
       if (!me.ok) return me;
       domainId = me.data.visitor.visitorId;
@@ -135,12 +202,12 @@ async function create(args, flags) {
     domainId,
     permission: flags.permission ? Number(flags.permission) : undefined,
     parentId,
-    contentFormat: 'markdown'
+    contentFormat: "markdown",
   });
 }
 
 // ─── 命令：update ───────────────────────────────────────────
-async function update(args, flags) {
+async function update(api, args, flags) {
   const id = args[0];
   if (!id) return { ok: false, error: "缺少文档 ID" };
 
@@ -155,17 +222,17 @@ async function update(args, flags) {
   if (!body.content && !body.displayName && body.permission === undefined) {
     return { ok: false, error: "缺少更新内容（--content, --file, --title 至少一个）" };
   }
-  body.contentFormat = 'markdown'
+  body.contentFormat = "markdown";
   return api("PUT", `/documents/${encodeURIComponent(id)}`, body);
 }
 
 // ─── 命令：domains ─────────────────────────────────────────
-async function domains() {
+async function domains(api) {
   return api("GET", "/domains");
 }
 
 // ─── 命令：list ─────────────────────────────────────────────
-async function list(flags) {
+async function list(api, flags) {
   const params = new URLSearchParams();
   if (flags.domain) params.set("domainId", flags.domain);
   if (flags.domainName) params.set("domainName", flags.domainName);
@@ -174,7 +241,7 @@ async function list(flags) {
 }
 
 // ─── 命令：mkdir ────────────────────────────────────────────
-async function mkdir(flags) {
+async function mkdir(api, flags) {
   if (!flags.domain) return { ok: false, error: "缺少 --domain <域ID>" };
   if (!flags.name) return { ok: false, error: "缺少 --name <目录名>" };
   return api("POST", "/folders", {
@@ -185,15 +252,13 @@ async function mkdir(flags) {
 }
 
 // ─── 命令：ls ───────────────────────────────────────────────
-async function ls(args, flags) {
+async function ls(api, args, flags) {
   const target = args[0];
   if (!target) return { ok: false, error: "缺少参数：<documentId> 或 <文件名关键词>" };
 
   let doc;
 
-  // 方式1：按文件名搜索（需要指定域）
   if (flags.domain || flags.domainName) {
-    // 先列出域下所有文档，按 display_name 匹配
     const params = new URLSearchParams();
     if (flags.domain) params.set("domainId", flags.domain);
     if (flags.domainName) params.set("domainName", flags.domainName);
@@ -202,28 +267,23 @@ async function ls(args, flags) {
     const listResult = await api("GET", `/documents${qs ? "?" + qs : ""}`);
     if (!listResult.ok) return listResult;
 
-    // 匹配 display_name 或 relative_path
-    const matched = listResult.data.find(d =>
-      d.displayName?.includes(target) || d.relativePath?.includes(target)
+    const matched = listResult.data.find(
+      (d) => d.displayName?.includes(target) || d.relativePath?.includes(target),
     );
     if (!matched) {
       return { ok: false, error: `在指定域中未找到匹配 "${target}" 的文档` };
     }
     doc = matched;
   } else {
-    // 方式2：直接按 documentId 查询
     const getResult = await api("GET", `/documents/${encodeURIComponent(target)}`);
     if (!getResult.ok) return getResult;
     doc = getResult.data;
   }
 
-  // 确定要查询的目录ID
   let folderId;
-  if (doc.fileType === 'dir') {
-    // 是目录，直接查它的子节点
+  if (doc.fileType === "dir") {
     folderId = doc.documentId;
   } else {
-    // 是普通文章，查它的父目录
     folderId = doc.parentId;
     if (!folderId) {
       return { ok: false, error: "该文档在根目录下，没有父目录" };
@@ -235,25 +295,34 @@ async function ls(args, flags) {
 
 // ─── 入口 ───────────────────────────────────────────────────
 async function main() {
-  const { args, flags } = parseArgs(process.argv.slice(2));
-  const cmd = args[0];
+  const result = await withMdocsClient(process.argv.slice(2), async ({ api, argv }) => {
+    const { args, flags } = parseArgs(argv);
+    const cmd = args[0];
 
-  let result;
-  switch (cmd) {
-    case "search": result = await search(flags); break;
-    case "get":    result = await get(args.slice(1)); break;
-    case "create": result = await create(args.slice(1), flags); break;
-    case "update": result = await update(args.slice(1), flags); break;
-    case "list":   result = await list(flags); break;
-    case "domains": result = await domains(); break;
-    case "mkdir":  result = await mkdir(flags); break;
-    case "ls":     result = await ls(args.slice(1), flags); break;
-    default:
-      result = {
-        ok: false,
-        error: `未知命令: ${cmd}\n支持: search, get, create, update, list, domains, mkdir, ls`,
-      };
-  }
+    switch (cmd) {
+      case "search":
+        return search(api, flags);
+      case "get":
+        return get(api, args.slice(1));
+      case "create":
+        return create(api, args.slice(1), flags);
+      case "update":
+        return update(api, args.slice(1), flags);
+      case "list":
+        return list(api, flags);
+      case "domains":
+        return domains(api);
+      case "mkdir":
+        return mkdir(api, flags);
+      case "ls":
+        return ls(api, args.slice(1), flags);
+      default:
+        return {
+          ok: false,
+          error: `未知命令: ${cmd}\n支持: search, get, create, update, list, domains, mkdir, ls`,
+        };
+    }
+  });
 
   process.stdout.write(JSON.stringify(result) + "\n");
   if (!result.ok) process.exit(1);

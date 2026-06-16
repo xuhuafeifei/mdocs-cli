@@ -34,23 +34,29 @@ fi
 
 # 前置条件
 
-1. **环境变量 `MDOCS_TOKEN`**：用户需在 mdocs 设置页创建 CLI Token，然后 `export MDOCS_TOKEN=xxx`。
-2. **mdocs 服务端在运行**：默认地址 `http://127.0.0.1:4000`，可通过 `MDOCS_SERVER` 覆盖。
+1. **CLI Token（必填）**：`--token <token>` 或环境变量 `MDOCS_TOKEN`（在 mdocs 设置页创建）。**入参优先于环境变量。**
+2. **服务端地址（可选）**：`--ip <host[:port]|url>` 或 `MDOCS_SERVER`；都未设置时默认 `http://127.0.0.1:4000`。**入参优先于环境变量。**
 3. **Node.js 18+**：built-in `fetch`，零依赖。
 
 # Token 失效处理
 
-当调用 CLI 返回 `INVALID_TOKEN` 或 `MDOCS_TOKEN 未设置` 错误时：
+当调用 CLI 返回 `INVALID_TOKEN` 或缺少 Token 错误时：
 
-1. 先检查 `echo $MDOCS_TOKEN` 是否为空，如果为空则主动问用户要 token
+1. 先检查是否提供了 `--token` 或 `echo $MDOCS_TOKEN` 非空
 2. 如果 token 已设置但仍报 `INVALID_TOKEN`，说明 token 已过期或被吊销，主动告知用户需要去 mdocs 设置页重新创建 CLI Token
-3. 拿到新 token 后，让用户 `export MDOCS_TOKEN=xxx` 或直接在命令前内联
+3. 拿到新 token 后，用 `--token xxx` 或 `export MDOCS_TOKEN=xxx`
 
 **不要自行通过 API 注册访客拿 token**，token 需要用户在 mdocs 设置页手动创建。
 
 # 调用方式
 
 ```bash
+# 全局选项可放在任意位置
+node ~/.mdocs-cli/mdocs.mjs --token <token> --ip 101.132.222.88:4000 <command> [args]
+
+# 或使用环境变量
+export MDOCS_TOKEN=xxx
+export MDOCS_SERVER=http://101.132.222.88:4000
 node ~/.mdocs-cli/mdocs.mjs <command> [args]
 ```
 
