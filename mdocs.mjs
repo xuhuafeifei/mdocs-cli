@@ -15,10 +15,10 @@
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
  *   node mdocs.mjs create --domain <域ID> --parent <目录ID> --name "笔记.md" --file /tmp/content.md
  *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
+ *   node mdocs.mjs update <文档ID> --file /tmp/content.md --skip-version-check  # 跳过乐观锁
  *   node mdocs.mjs list [--domain <id>] [--domainName <name>]
  *   node mdocs.mjs mkdir --domain <id> --name "目录名"
  *   node mdocs.mjs ls <documentId>
- *   node mdocs.mjs ls "文件名关键词" --domain <域ID>
  */
 
 const DEFAULT_SERVER = "http://127.0.0.1:4000";
@@ -211,7 +211,7 @@ async function update(api, args, flags) {
   const id = args[0];
   if (!id) return { ok: false, error: "缺少文档 ID" };
 
-  const body = {};
+  const body = { contentFormat: "markdown" };
   if (flags.content) body.content = flags.content;
   if (flags.file) {
     const fs = await import("node:fs");
@@ -222,7 +222,30 @@ async function update(api, args, flags) {
   if (!body.content && !body.displayName && body.permission === undefined) {
     return { ok: false, error: "缺少更新内容（--content, --file, --title 至少一个）" };
   }
-  body.contentFormat = "markdown";
+  // 版本语义：默认带 version.baseCommitId 做乐观锁；409 时需 Web 合并或显式 --merge
+  if (flags.merge) {
+    if (!flags.base || !flags["expected-head"]) {
+      return {
+        ok: false,
+        error: "merge 发布需要 --base <commitId> --expected-head <commitId>",
+      };
+    }
+    body.version = {
+      baseCommitId: flags.base,
+      merge: {
+        expectedHeadCommitId: flags["expected-head"],
+        localSnapshotContent: flags["local-snapshot"] || undefined,
+      },
+    };
+  } else if (flags.base) {
+    body.version = { baseCommitId: flags.base };
+  } else if (!flags["skip-version-check"]) {
+    const current = await api("GET", `/documents/${encodeURIComponent(id)}?format=text`);
+    if (!current.ok) return current;
+    if (current.data.headCommitId) {
+      body.version = { baseCommitId: current.data.headCommitId };
+    }
+  }
   return api("PUT", `/documents/${encodeURIComponent(id)}`, body);
 }
 

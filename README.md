@@ -1,33 +1,26 @@
 # mdocs-cli
 
-mdocs Markdown 知识库的 CLI 客户端。
+mdocs Markdown 知识库的 CLI 客户端 + Agent Skills。
 
-零依赖，单文件 Node.js（built-in `fetch`，Node 18+），通过 HTTP 调用 mdocs 的 REST API。
+- **CLI**：零依赖单文件 `mdocs.mjs`，HTTP 调用 mdocs REST API。
+- **Skills**（`skills/`）：
+  - **mdocs-cli** — 命令行调用 mdocs API
+  - **mdocs-dev** — 项目内 `.mdocs-docs` 开发契约（人审设计后再写代码）
 
 ## 快速开始
 
 ```bash
-# 1. 设置认证
+# 1. 克隆到本地（Agent 运行时目录）
+git clone https://github.com/xuhuafeifei/mdocs-cli.git ~/.mdocs-cli
+
+# 2. 设置认证
 export MDOCS_TOKEN="从 mdocs 设置页创建的 CLI Token"
 
-# 2. 搜索文章
-node mdocs.mjs search --q "关键词"
+# 3. 搜索文章
+node ~/.mdocs-cli/mdocs.mjs search --q "关键词"
 
-# 3. 读取文章
-node mdocs.mjs get <文档ID>
-
-# 4. 列出某域下所有文档
-node mdocs.mjs list --domain <域ID>
-node mdocs.mjs list --domainName <域名>
-
-# 5. 创建文章
-#   方式 A：指定参考文档，创建在同级目录
-node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
-#   方式 B：不指定位置，默认写到私域根目录
-node mdocs.mjs create --name "笔记.md" --title "标题" --content "正文"
-
-# 6. 创建目录
-node mdocs.mjs mkdir --domain <域ID> --name "目录名"
+# 4. 读取文章
+node ~/.mdocs-cli/mdocs.mjs get <文档ID>
 ```
 
 ## 环境变量与全局参数
@@ -49,31 +42,36 @@ node mdocs.mjs domains --token xxx --ip 101.132.222.88:4000
 
 ## 命令
 
-| 命令 | 说明 | 后端 API |
-|------|------|----------|
-| `search` | 全文检索 | `POST /api/documents/search` |
-| `get` | 读取文档内容 | `GET /api/documents/:id` |
-| `list` | 列出某域下所有文档 | `GET /api/documents?domainId=xxx&domainName=xxx` |
-| `create` | 创建文档 | `POST /api/documents` |
-| `mkdir` | 创建目录 | `POST /api/folders` |
+| 命令 | 说明 |
+|------|------|
+| `search` | 全文检索 |
+| `get` | 读取文档 |
+| `list` | 列出域内文档 |
+| `ls` | 列出目录子节点 |
+| `create` | 创建文档 |
+| `update` | 更新文档（乐观锁） |
+| `mkdir` | 创建目录 |
+| `domains` | 列出域 |
 
-## 代理输出格式
+详见 [skills/mdocs-cli/SKILL.md](./skills/mdocs-cli/SKILL.md)。
 
-所有命令输出统一 JSON：
-
-```json
-{"ok": true, "data": ...}
-{"ok": false, "error": "错误描述"}
-```
-
-成功 exit 0，失败 exit 1。
-
-## 分发 Skill 到 Agent
+## 分发 Skills 到 Agent
 
 ```bash
-./distribute-skill.sh              # 分发到所有 agent
-./distribute-skill.sh deepseek     # 只分发到 deepseek
-./distribute-skill.sh claude       # 只分发到 claude
+./distribute-skill.sh              # 默认 agent：claude cursor deepseek kimi qwen
+./distribute-skill.sh cursor       # 只分发到 cursor
 ```
 
-会自动复制 `SKILL.md` 到对应 agent 的 skills 目录（如 `~/.deepseek/skills/mdoc-cli/`）。
+一次分发 **skills/ 下全部 skill**（`mdocs-cli` + `mdocs-dev`）到 `~/.<agent>/skills/<skill-name>/`。
+
+## 仓库结构
+
+```
+mdocs-cli/
+├── mdocs.mjs
+├── skills/
+│   ├── mdocs-cli/SKILL.md    # CLI 专用
+│   └── mdocs-dev/SKILL.md    # 开发契约
+├── distribute-skill.sh
+└── README.md
+```
