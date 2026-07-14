@@ -6,6 +6,7 @@ mdocs Markdown 知识库的 CLI 客户端 + Agent Skills。
 - **Skills**（`skills/`）：
   - **mdocs-cli** — 命令行调用 mdocs API
   - **mdocs-dev** — 项目内 `.mdocs-docs` 开发契约（人审设计后再写代码）
+  - **diagram** — 在 `.mdocs-docs/diagrams/` 落盘 Mermaid 图文档（给人阅读）
 
 ## 快速开始
 
@@ -62,7 +63,7 @@ node mdocs.mjs domains --token xxx --ip 101.132.222.88:4000
 ./distribute-skill.sh cursor       # 只分发到 cursor
 ```
 
-一次分发 **skills/ 下全部 skill**（`mdocs-cli` + `mdocs-dev`）到 `~/.<agent>/skills/<skill-name>/`。
+一次分发 **skills/ 下全部 skill**（`mdocs-cli` + `mdocs-dev` + `diagram`）到 `~/.<agent>/skills/<skill-name>/`（含 `references/` 等附属文件）。
 
 ## 仓库结构
 
@@ -71,7 +72,8 @@ mdocs-cli/
 ├── mdocs.mjs
 ├── skills/
 │   ├── mdocs-cli/SKILL.md    # CLI 专用
-│   └── mdocs-dev/SKILL.md    # 开发契约
+│   ├── mdocs-dev/SKILL.md    # 开发契约
+│   └── diagram/              # Mermaid 图文档（含 references/）
 ├── distribute-skill.sh
 └── README.md
 ```

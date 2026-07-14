@@ -7,10 +7,11 @@
 #
 # 无参数时默认分发到：claude cursor deepseek kimi qwen
 #
-# 规则: skills/<skill-name>/SKILL.md → ~/.<agent>/skills/<skill-name>/SKILL.md
+# 规则: skills/<skill-name>/ 整目录 → ~/.<agent>/skills/<skill-name>/
+#       （含 SKILL.md 与 references/ 等附属文件）
 #
 # 示例:
-#   ./distribute-skill.sh                    # 默认 agent 列表，分发 mdocs-cli + mdocs-dev
+#   ./distribute-skill.sh                    # 默认 agent 列表
 #   ./distribute-skill.sh cursor claude      # 指定 agent
 
 set -euo pipefail
@@ -46,41 +47,45 @@ echo
 ok=0
 fail=0
 
-copy_skill() {
-  local src="$1"
-  local dst="$2"
-  if cp "${src}" "${dst}" 2>/dev/null; then
-    return 0
+# 整目录同步 skill（覆盖目标目录内容，保留其它无关文件不在此目录内）
+copy_skill_dir() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  mkdir -p "${dest_dir}"
+  if command -v rsync &>/dev/null; then
+    rsync -a --delete "${src_dir}/" "${dest_dir}/"
+    return $?
   fi
   if command -v python3 &>/dev/null; then
     python3 -c "
 import os, shutil
-os.makedirs(os.path.dirname('${dst}'), exist_ok=True)
-shutil.copy2('${src}', '${dst}')
-" 2>/dev/null
+src = '''${src_dir}'''
+dst = '''${dest_dir}'''
+if os.path.isdir(dst):
+    shutil.rmtree(dst)
+shutil.copytree(src, dst)
+"
     return $?
   fi
-  return 1
+  rm -rf "${dest_dir}"
+  cp -R "${src_dir}" "${dest_dir}"
 }
 
 for agent; do
   for skill in "${skill_names[@]}"; do
-    src="${SKILLS_DIR}/${skill}/SKILL.md"
-    dest="${HOME}/.${agent}/skills/${skill}"
-    dst="${dest}/SKILL.md"
+    src_dir="${SKILLS_DIR}/${skill}"
+    dest_dir="${HOME}/.${agent}/skills/${skill}"
 
-    if [[ ! -f "${src}" ]]; then
+    if [[ ! -f "${src_dir}/SKILL.md" ]]; then
       echo "  [SKIP] ${skill} — 源文件不存在"
       continue
     fi
 
-    mkdir -p "${dest}"
-
-    if copy_skill "${src}" "${dst}"; then
-      echo "  [ OK ] ${agent} → ${dst}"
+    if copy_skill_dir "${src_dir}" "${dest_dir}"; then
+      echo "  [ OK ] ${agent} → ${dest_dir}/"
       ((ok++)) || true
     else
-      echo "  [FAIL] ${agent} → ${dst}"
+      echo "  [FAIL] ${agent} → ${dest_dir}/"
       ((fail++)) || true
     fi
   done

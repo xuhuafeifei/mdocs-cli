@@ -6,6 +6,7 @@
 |-------|------|------|
 | **mdocs-cli** | [skills/mdocs-cli/SKILL.md](./skills/mdocs-cli/SKILL.md) | mdocs HTTP CLI（search / get / create / update …） |
 | **mdocs-dev** | [skills/mdocs-dev/SKILL.md](./skills/mdocs-dev/SKILL.md) | `.mdocs-docs` 开发契约（需求分析、设计门控、map） |
+| **diagram** | [skills/diagram/SKILL.md](./skills/diagram/SKILL.md) | `.mdocs-docs/diagrams/` Mermaid 图文档（给人阅读） |
 
 ## 分发到本地 Agent
 

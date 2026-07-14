@@ -8,6 +8,7 @@ description: 用 .mdocs-docs 开发契约辅助 Agent 项目开发（想法落�
 - 辅助 **Agent + 开发者** 做项目开发：在仓库内维护 **开发契约**（本地 staging），必要时推到 **mdocs**。
 - **两个亮点**：① 决策与辅助信息 **落盘**；② 关键结论 **举证**（关键词 + 代码定位，不贴代码正文）。
 - 推到 mdocs 时遵循 **`mdocs-cli` skill**（命令、Token、版本锁）。
+- 给人阅读的 Mermaid 架构/流程/时序图：用 **`diagram` skill**，落盘 `.mdocs-docs/diagrams/`，并从 README 索引；**不要**把图册职责塞进本契约 skill。
 
 # 契约目录
 
@@ -15,12 +16,15 @@ description: 用 .mdocs-docs 开发契约辅助 Agent 项目开发（想法落�
 
 ```
 .mdocs-docs/
-├── README.md                 # 总索引：文档地图、需求状态
+├── README.md                 # 总索引：文档地图、需求状态、diagrams 入口
 ├── map/                      # 机器主索引（全仓，可持续增厚）
 │   ├── README.md
 │   ├── backend.md
 │   ├── frontend.md
 │   └── …
+├── diagrams/                 # 给人读的 Mermaid 图（见 diagram skill）
+│   ├── README.md
+│   └── <主题>.md
 ├── decisions/
 │   └── NNN-<短标题>.md
 └── requirements/
