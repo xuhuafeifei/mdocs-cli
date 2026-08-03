@@ -68,11 +68,12 @@ node ~/.mdocs-cli/mdocs.mjs <command> [args]
 
 ## update 说明
 
-- 默认 `GET` 拿 `headCommitId`，PUT 带 `version.baseCommitId`
+- 默认 `GET` 拿 `headCommitId`，PUT 带 `version.localBaseCommitId`（与服务端字段一致）
 - 冲突：`[VERSION_CONFLICT]`，需在 Web 合并或处理后再推
 - `--skip-version-check`：跳过乐观锁（慎用）
-- `--base <commitId>`：手动指定 base
+- `--base <commitId>`：手动指定 `localBaseCommitId`
 - 高级 merge：`--merge --base ... --expected-head ... [--local-snapshot ...]`
+  （`--expected-head` → 服务端 `version.merge.remoteCommitId`）
 
 ## ls 说明
 

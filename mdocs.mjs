@@ -222,7 +222,8 @@ async function update(api, args, flags) {
   if (!body.content && !body.displayName && body.permission === undefined) {
     return { ok: false, error: "缺少更新内容（--content, --file, --title 至少一个）" };
   }
-  // 版本语义：默认带 version.baseCommitId 做乐观锁；409 时需 Web 合并或显式 --merge
+  // 版本语义：默认带 version.localBaseCommitId 做乐观锁；409 时需 Web 合并或显式 --merge
+  // 字段名与 mdocs 服务端一致（旧名 baseCommitId / expectedHeadCommitId 已废弃）
   if (flags.merge) {
     if (!flags.base || !flags["expected-head"]) {
       return {
@@ -231,19 +232,19 @@ async function update(api, args, flags) {
       };
     }
     body.version = {
-      baseCommitId: flags.base,
+      localBaseCommitId: flags.base,
       merge: {
-        expectedHeadCommitId: flags["expected-head"],
+        remoteCommitId: flags["expected-head"],
         localSnapshotContent: flags["local-snapshot"] || undefined,
       },
     };
   } else if (flags.base) {
-    body.version = { baseCommitId: flags.base };
+    body.version = { localBaseCommitId: flags.base };
   } else if (!flags["skip-version-check"]) {
     const current = await api("GET", `/documents/${encodeURIComponent(id)}?format=text`);
     if (!current.ok) return current;
     if (current.data.headCommitId) {
-      body.version = { baseCommitId: current.data.headCommitId };
+      body.version = { localBaseCommitId: current.data.headCommitId };
     }
   }
   return api("PUT", `/documents/${encodeURIComponent(id)}`, body);
