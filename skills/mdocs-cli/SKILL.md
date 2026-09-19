@@ -50,10 +50,10 @@ node ~/.mdocs-cli/mdocs.mjs <command> [args]
 
 | 命令 | 用途 |
 |------|------|
-| `domains` | 列出可访问域 |
+| `domains` | 列出可访问工作空间 |
 | `search --q <词> [--domain <id>] [--topn <n>]` | 全文检索 |
 | `get <文档ID>` | 读取文档（含 `headCommitId` 等元数据） |
-| `list [--domain <id>] [--domainName <名>]` | 列出域内文档 |
+| `list [--domain <id>] [--domainName <名>]` | 列出工作空间内文档 |
 | `ls <documentId>` | 列出目录下子节点 |
 | `mkdir --domain <id> --name <名> [--parent <id>]` | 创建目录 |
 | `create --domain <id> --parent <目录ID> --name <文件.md> [--file <路径>] [--content <正文>]` | 创建文档 |
@@ -64,7 +64,7 @@ node ~/.mdocs-cli/mdocs.mjs <command> [args]
 
 - **优先**：`--domain` + `--parent`（先 `get` / `ls` 确认 `fileType === 'dir'`）
 - `--file` 与 `--content` 二选一
-- 未指定位置时默认写到当前用户私域根目录
+- 未指定位置时默认写到当前用户私工作空间根目录目录
 
 ## update 说明
 

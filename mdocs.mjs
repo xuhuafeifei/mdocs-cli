@@ -13,7 +13,7 @@
  *   node mdocs.mjs search --q "关键词" [--domain <id>] [--topn <n>]
  *   node mdocs.mjs get <document-id>
  *   node mdocs.mjs create <参考文档ID> --name "笔记.md" --title "标题" --content "正文"
- *   node mdocs.mjs create --domain <域ID> --parent <目录ID> --name "笔记.md" --file /tmp/content.md
+ *   node mdocs.mjs create --domain <工作空间 ID> --parent <目录ID> --name "笔记.md" --file /tmp/content.md
  *   node mdocs.mjs update <文档ID> --content "新正文" [--title "新标题"]
  *   node mdocs.mjs update <文档ID> --file /tmp/content.md --skip-version-check  # 跳过乐观锁
  *   node mdocs.mjs list [--domain <id>] [--domainName <name>]
@@ -266,7 +266,7 @@ async function list(api, flags) {
 
 // ─── 命令：mkdir ────────────────────────────────────────────
 async function mkdir(api, flags) {
-  if (!flags.domain) return { ok: false, error: "缺少 --domain <域ID>" };
+  if (!flags.domain) return { ok: false, error: "缺少 --domain <工作空间 ID>" };
   if (!flags.name) return { ok: false, error: "缺少 --name <目录名>" };
   return api("POST", "/folders", {
     name: flags.name,
@@ -295,7 +295,7 @@ async function ls(api, args, flags) {
       (d) => d.displayName?.includes(target) || d.relativePath?.includes(target),
     );
     if (!matched) {
-      return { ok: false, error: `在指定域中未找到匹配 "${target}" 的文档` };
+      return { ok: false, error: `在指定工作空间中未找到匹配 "${target}" 的文档` };
     }
     doc = matched;
   } else {

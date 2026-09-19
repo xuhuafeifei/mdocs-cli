@@ -47,12 +47,12 @@ node mdocs.mjs domains --token xxx --ip 101.132.222.88:4000
 |------|------|
 | `search` | 全文检索 |
 | `get` | 读取文档 |
-| `list` | 列出域内文档 |
+| `list` | 列出工作空间内文档 |
 | `ls` | 列出目录子节点 |
 | `create` | 创建文档 |
 | `update` | 更新文档（乐观锁） |
 | `mkdir` | 创建目录 |
-| `domains` | 列出域 |
+| `domains` | 列出工作空间 |
 
 详见 [skills/mdocs-cli/SKILL.md](./skills/mdocs-cli/SKILL.md)。
 
